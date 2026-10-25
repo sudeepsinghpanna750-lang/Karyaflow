@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KaryaFlow — Secure AI Workflow Platform</title>
+  <meta name="description" content="KaryaFlow is a secure, fast platform to build, run and automate AI workflows. Free tier, Indian + international payments, mobile-first." />
+  <meta name="theme-color" content="#0b1020" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%236366f1'/><text x='16' y='22' font-size='18' font-family='Arial' font-weight='bold' fill='%2306122b' text-anchor='middle'>K</text></svg>" />
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="logo" href="/"><span class="mark">K</span> KaryaFlow</a>
+      <nav class="nav-links" id="navLinks">
+        <a href="/#features">Features</a>
+        <a href="/pricing.html">Pricing</a>
+        <a href="/#faq">FAQ</a>
+        <a href="/auth.html">Login</a>
+        <a class="btn btn-primary btn-sm" href="/auth.html">Get Started</a>
+      </nav>
+      <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <span class="badge-soft"><span class="dot"></span> Secure · Fast · Mobile-first</span>
+      <h1>Build &amp; run <span class="grad">AI workflows</span><br />without the chaos</h1>
+      <p class="lead">KaryaFlow lets you design visual workflows, connect an AI provider of your choice, and automate real work — with bank-grade security, one-account-per-IP safety, and payments that work in India and worldwide.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="/auth.html">Start free — 5 workflows</a>
+        <a class="btn btn-ghost" href="/pricing.html">View pricing</a>
+      </div>
+    </section>
+
+    <section id="features">
+      <h2 class="section-title">Everything you need, nothing you don't</h2>
+      <p class="section-sub">A focused, production-grade platform engineered for speed and safety.</p>
+      <div class="grid grid-3">
+        <div class="card hover">
+          <div class="feature-icon">🔐</div>
+          <h3>Hardened security</h3>
+          <p>HTTP-only session cookies, CSRF protection, bcrypt hashing, rate limiting, and one-signup-per-IP enforcement.</p>
+        </div>
+        <div class="card hover">
+          <div class="feature-icon">🧩</div>
+          <h3>Visual workflow builder</h3>
+          <p>Compose triggers and steps into reusable workflows. No code required to get started.</p>
+        </div>
+        <div class="card hover">
+          <div class="feature-icon">🤖</div>
+          <h3>Pluggable AI</h3>
+          <p>Bring your own OpenAI-compatible key. Runs are simulated until you connect a provider — zero lock-in.</p>
+        </div>
+        <div class="card hover">
+          <div class="feature-icon">🌍</div>
+          <h3>India + international payments</h3>
+          <p>Razorpay for UPI/Cards (INR) and Stripe for global cards (USD). One pricing, both rails.</p>
+        </div>
+        <div class="card hover">
+          <div class="feature-icon">📱</div>
+          <h3>Mobile-friendly &amp; fast</h3>
+          <p>Lightweight, no-heavy-framework front end. Loads in a blink on any device or connection.</p>
+        </div>
+        <div class="card hover">
+          <div class="feature-icon">✉️</div>
+          <h3>Email verification</h3>
+          <p>Google/Gmail SMTP verification on signup so every account is real and owned by you.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">How it works</h2>
+      <p class="section-sub">From signup to running your first automation in under two minutes.</p>
+      <div class="grid grid-3 steps">
+        <div class="card">
+          <div class="step"><span class="num">1</span><div><h3>Sign up &amp; verify</h3><p>One account per IP. Confirm your email via a secure verification link.</p></div></div>
+        </div>
+        <div class="card">
+          <div class="step"><span class="num">2</span><div><h3>Build a workflow</h3><p>Name it, set a trigger, add steps. Get 5 free workflows to start.</p></div></div>
+        </div>
+        <div class="card">
+          <div class="step"><span class="num">3</span><div><h3>Run &amp; upgrade</h3><p>Run instantly. Need more? Upgrade with Razorpay or Stripe in one click.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing-preview">
+      <h2 class="section-title">Simple, transparent pricing</h2>
+      <p class="section-sub">Start free. Pay only when you need more.</p>
+      <div class="grid grid-3" id="priceGrid"></div>
+      <p class="center muted" style="margin-top:22px"><a class="btn btn-outline" href="/pricing.html">See all plans &amp; pay</a></p>
+    </section>
+
+    <section id="faq">
+      <h2 class="section-title">FAQ</h2>
+      <div class="grid grid-2">
+        <div class="card"><h3>Is it really free to start?</h3><p>Yes — every new account gets 5 workflows free, forever. No card required.</p></div>
+        <div class="card"><h3>Which payments do you support?</h3><p>Razorpay (UPI, Cards, Netbanking in INR) and Stripe (global cards in USD).</p></div>
+        <div class="card"><h3>Do you store my password?</h3><p>Never in plain text. Passwords are hashed with bcrypt and sessions use HTTP-only cookies.</p></div>
+        <div class="card"><h3>Can I use my own AI model?</h3><p>Yes. Point KaryaFlow at any OpenAI-compatible endpoint via environment config.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container cols">
+      <div>© <span id="year"></span> KaryaFlow · Secure AI Workflow Platform</div>
+      <div><a href="/pricing.html">Pricing</a> · <a href="/auth.html">Login</a> · <a href="/admin.html">Admin</a></div>
+    </div>
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+    document.getElementById('menuBtn').addEventListener('click', () => {
+      document.getElementById('navLinks').classList.toggle('open');
+    });
+    const PLANS = [
+      { id:'free', name:'Free', price:'$0', note:'5 workflows · forever', feats:['5 workflow credits','Email verification','Mobile dashboard'] },
+      { id:'normal', name:'Normal', price:'$1', note:'+10 workflows (one-time)', feats:['10 extra workflows','One-time pack','No expiry'], featured:false },
+      { id:'premium', name:'Premium', price:'$50', note:'1 month unlimited', feats:['Unlimited workflows','30 days access','Priority everything'], featured:true },
+    ];
+    const grid = document.getElementById('priceGrid');
+    grid.innerHTML = PLANS.map(p => `
+      <div class="card price-card ${p.featured ? 'featured' : ''}">
+        ${p.featured ? '<span class="tag-pop">Best value</span>' : ''}
+        <h3>${p.name}</h3>
+        <div class="price">${p.price} <small>${p.note}</small></div>
+        <ul class="price-features">${p.feats.map(f => `<li>${f}</li>`).join('')}</ul>
+        <a class="btn ${p.featured ? 'btn-primary' : 'btn-ghost'} btn-block" href="/pricing.html">${p.id==='free'?'Get started':'Choose '+p.name}</a>
+      </div>`).join('');
+  </script>
+</body>
+</html>
