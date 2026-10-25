@@ -1,4 +1,16 @@
 {
+  "name": "karyaflow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Secure AI workflow platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.11.1",
