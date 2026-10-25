@@ -1,116 +1,13 @@
 const express = require('express');
-const models = require('../models');
-const { requireAuth } = require('../middleware/auth');
-const { csrfProtect } = require('../middleware/csrf');
-const payments = require('../payments');
-const { getPlan } = require('../plans');
-const config = require('../config');
-
+const models = require('./models');
+const security = require('./security');
+const payments = require('./payments');
+const { getPlan } = require('./plans');
+const config = require('./config');
 const router = express.Router();
-router.use(requireAuth);
-router.use(csrfProtect);
-
-router.get('/status', (req, res) => {
-  res.json({
-    mode: config.paymentMode,
-    stripe: !!config.stripeSecretKey,
-    razorpay: !!(config.razorpayKeyId && config.razorpayKeySecret),
-    razorpayKeyId: config.razorpayKeyId || null,
-  });
-});
-
-router.post('/create-checkout', async (req, res) => {
-  const { planId, gateway } = req.body || {};
-  const plan = getPlan(planId);
-  if (!plan) return res.status(400).json({ error: 'Invalid plan' });
-  if (!['demo', 'stripe', 'razorpay'].includes(gateway)) return res.status(400).json({ error: 'Invalid gateway' });
-
-  try {
-    if (gateway === 'demo') {
-      models.grantPlan(req.user.id, planId);
-      models.recordPayment({
-        userId: req.user.id,
-        plan: planId,
-        gateway: 'demo',
-        amount: plan.priceUsd * 100,
-        currency: 'usd',
-        status: 'paid',
-        gatewayId: 'demo',
-      });
-      return res.json({ ok: true, demo: true, access: models.getAccess(req.user) });
-    }
-
-    const result = await payments.createCheckout({ planId, gateway, user: req.user });
-    const currency = gateway === 'razorpay' ? 'inr' : 'usd';
-    const amount = gateway === 'razorpay' ? plan.priceInr * 100 : plan.priceUsd * 100;
-    const pid = models.recordPayment({
-      userId: req.user.id,
-      plan: planId,
-      gateway,
-      amount,
-      currency,
-      status: 'pending',
-      gatewayId: result.sessionId || (result.order && result.order.id) || null,
-    });
-    return res.json({ ok: true, ...result, paymentId: pid });
-  } catch (e) {
-    return res.status(400).json({ error: e.message });
-  }
-});
-
-router.post('/razorpay-verify', async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
-  if (!payments.verifyRazorpaySignature({ razorpay_order_id, razorpay_payment_id, razorpay_signature })) {
-    return res.status(400).json({ error: 'Invalid payment signature' });
-  }
-  try {
-    const rzp = payments.getRazorpay();
-    if (!rzp) return res.status(400).json({ error: 'Razorpay is not configured' });
-    const order = await rzp.orders.fetch(razorpay_order_id);
-    const planId = order.notes && order.notes.planId;
-    const userId = order.notes && order.notes.userId;
-    if (String(userId) !== String(req.user.id)) return res.status(403).json({ error: 'Order does not belong to this user' });
-    if (!getPlan(planId)) return res.status(400).json({ error: 'Invalid plan' });
-    models.grantPlan(req.user.id, planId);
-    models.recordPayment({
-      userId: req.user.id,
-      plan: planId,
-      gateway: 'razorpay',
-      amount: order.amount,
-      currency: order.currency,
-      status: 'paid',
-      gatewayId: razorpay_payment_id,
-    });
-    return res.json({ ok: true, access: models.getAccess(req.user) });
-  } catch (e) {
-    return res.status(400).json({ error: e.message });
-  }
-});
-
-// Stripe webhook (mounted with raw body in server.js)
-async function stripeWebhook(req, res) {
-  const sig = req.headers['stripe-signature'];
-  const event = payments.verifyStripeWebhook(req.body, sig); // req.body is a Buffer
-  if (!event) return res.status(400).send('Invalid signature');
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    const userId = session.metadata && session.metadata.userId;
-    const planId = session.metadata && session.metadata.planId;
-    if (userId && getPlan(planId)) {
-      models.grantPlan(parseInt(userId, 10), planId);
-      models.recordPayment({
-        userId: parseInt(userId, 10),
-        plan: planId,
-        gateway: 'stripe',
-        amount: session.amount_total,
-        currency: session.currency,
-        status: 'paid',
-        gatewayId: session.id,
-      });
-    }
-  }
-  return res.json({ received: true });
-}
-
-module.exports = router;
-module.exports.stripeWebhook = stripeWebhook;
+function requireAuth(req,res,next){const t=req.cookies&&req.cookies.kf_session;const p=t&&security.verifySession(t);const u=p&&models.getUserById(p.uid);if(!u)return res.status(401).json({error:'Unauthorized'});req.user=u;next();}
+function csrf(req,res,next){if(['GET','HEAD','OPTIONS'].includes(req.method))return next();const h=req.headers['x-csrf-token'];const c=req.cookies&&req.cookies.kf_csrf;if(!h||!c||h!==c)return res.status(403).json({error:'CSRF token mismatch'});next();}
+router.use(requireAuth);router.use(csrf);router.get('/status',(req,res)=>res.json({mode:config.paymentMode,stripe:!!config.stripeSecretKey,razorpay:!!(config.razorpayKeyId&&config.razorpayKeySecret),razorpayKeyId:config.razorpayKeyId||null}));
+router.post('/create-checkout',async(req,res)=>{const plan=getPlan(req.body&&req.body.planId),gateway=req.body&&req.body.gateway;if(!plan||!['stripe','razorpay','demo'].includes(gateway))return res.status(400).json({error:'Invalid checkout request'});try{if(gateway==='demo'){if(config.paymentMode==='live')return res.status(400).json({error:'Demo payments are disabled.'});models.grantPlan(req.user.id,plan.id);return res.json({ok:true,demo:true,access:models.getAccess(req.user)});}const result=await payments.createCheckout({planId:plan.id,gateway,user:req.user});models.recordPayment({userId:req.user.id,plan:plan.id,gateway,amount:gateway==='razorpay'?plan.priceInr*100:plan.priceUsd*100,currency:gateway==='razorpay'?'inr':'usd',status:'pending',gatewayId:result.sessionId||(result.order&&result.order.id)});res.json({ok:true,...result});}catch(e){res.status(400).json({error:e.message});}});
+router.post('/razorpay-verify',async(req,res)=>{const p=req.body||{};if(!payments.verifyRazorpaySignature(p))return res.status(400).json({error:'Invalid payment signature'});try{const rzp=payments.getRazorpay();if(!rzp)return res.status(400).json({error:'Razorpay is not configured'});const order=await rzp.orders.fetch(p.razorpay_order_id),planId=order.notes&&order.notes.planId;if(String(order.notes&&order.notes.userId)!==String(req.user.id)||!getPlan(planId))return res.status(403).json({error:'Invalid order'});models.grantPlan(req.user.id,planId);models.recordPayment({userId:req.user.id,plan:planId,gateway:'razorpay',amount:order.amount,currency:order.currency,status:'paid',gatewayId:p.razorpay_payment_id});res.json({ok:true,access:models.getAccess(req.user)});}catch(e){res.status(400).json({error:'Payment verification failed'});}});
+async function stripeWebhook(req,res){const event=payments.verifyStripeWebhook(req.body,req.headers['stripe-signature']);if(!event)return res.status(400).send('Invalid signature');if(event.type==='checkout.session.completed'){const s=event.data.object,uid=s.metadata&&s.metadata.userId,pid=s.metadata&&s.metadata.planId;if(uid&&getPlan(pid)){models.grantPlan(Number.parseInt(uid,10),pid);models.recordPayment({userId:Number.parseInt(uid,10),plan:pid,gateway:'stripe',amount:s.amount_total,currency:s.currency,status:'paid',gatewayId:s.id});}}res.json({received:true});}module.exports=router;module.exports.stripeWebhook=stripeWebhook;
