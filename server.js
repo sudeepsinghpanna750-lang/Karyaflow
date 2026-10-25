@@ -2,81 +2,37 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const path = require('path');
-const config = require('./src/config');
+const config = require('./config');
+const paymentRoutes = require('./payments (1)');
+const authRoutes = require('./auth-routes');
+const workflowRoutes = require('./workflows');
+const adminRoutes = require('./admin');
 
 const app = express();
 app.set('trust proxy', config.trustProxy);
-
-// ---- Security headers ----
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", 'https://checkout.razorpay.com', 'https://js.stripe.com'],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
-        fontSrc: ["'self'", 'data:'],
-        connectSrc: ["'self'"],
-        frameSrc: ["'self'", 'https://js.stripe.com'],
-        baseUri: ["'self'"],
-        formAction: ["'self'"],
-      },
-    },
-    hsts: config.secureCookies ? { maxAge: 31536000, includeSubDomains: true } : false,
-  })
-);
-
-// ---- Static frontend ----
-const publicDir = path.join(__dirname, 'public');
-app.use(
-  express.static(publicDir, {
-    extensions: ['html'],
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
-    },
-  })
-);
-
-// ---- Stripe webhook MUST receive the RAW body (mount BEFORE json parsing) ----
-const paymentRoutes = require('./src/routes/payments');
-app.post('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }), paymentRoutes.stripeWebhook);
-
-// ---- Body parsing (everything except the raw webhook above) ----
-app.use(express.json({ limit: '1mb' }));
+app.use(helmet({ contentSecurityPolicy: false, hsts: config.secureCookies ? { maxAge: 31536000, includeSubDomains: true } : false }));
 app.use(cookieParser());
-
-// ---- API routes ----
-app.use('/api/auth', require('./src/routes/auth'));
-app.use('/api/workflows', require('./src/routes/workflows'));
+app.get('/api/health', (req, res) => res.json({ ok: true, service: 'karyaflow' }));
+app.use(express.json({ limit: '1mb' }));
+app.post('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }), paymentRoutes.stripeWebhook);
+app.use('/api/auth', authRoutes);
+app.use('/api/workflows', workflowRoutes);
 app.use('/api/payments', paymentRoutes);
-app.use('/api/admin', require('./src/routes/admin'));
+app.use('/api/admin', adminRoutes);
+app.use(express.static(__dirname, { extensions: ['html'], index: 'index.html', setHeaders: (res, filePath) => { if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache'); } }));
 
-// ---- Seed admin / owner account ----
 (async () => {
   try {
-    const models = require('./src/models');
-    const security = require('./src/security');
-    const db = require('./src/db');
     const existing = models.getUserByEmail(config.adminEmail);
     if (!existing) {
       const hash = await security.hashPassword(config.adminPassword);
       const user = models.createUser({ email: config.adminEmail, passwordHash: hash, ip: null, isAdmin: true });
-      db.prepare("UPDATE users SET plan='premium', plan_expires_at=?, workflow_credits=1000000 WHERE id=?").run(
-        Date.now() + 1000 * 365 * 24 * 3600 * 1000,
-        user.id
-      );
-      console.log('Seeded owner/admin account:', config.adminEmail);
+      db.prepare("UPDATE users SET plan='premium', plan_expires_at=?, workflow_credits=1000000 WHERE id=?").run(Date.now() + 365 * 86400000, user.id);
     }
-  } catch (e) {
-    console.error('Admin seed failed:', e.message);
-  }
+  } catch (error) { console.error('Admin seed failed:', error.message); }
 })();
 
-app.listen(config.port, () => {
-  console.log(`\n  KaryaFlow running → ${config.appUrl}`);
-  console.log(`  Payment mode: ${config.paymentMode}`);
-  console.log(`  Email (Gmail SMTP): ${config.emailUser ? 'configured' : 'DEV fallback (link shown on screen)'}`);
-  console.log(`  Stripe: ${config.stripeSecretKey ? 'configured' : 'not set'}`);
-  console.log(`  Razorpay: ${config.razorpayKeyId ? 'configured' : 'not set'}\n`);
-});
+const models = require('./models');
+const security = require('./security');
+const db = require('./db');
+app.listen(config.port, () => console.log(`KaryaFlow running on ${config.appUrl}`));
