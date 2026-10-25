@@ -1,0 +1,20 @@
+const express = require('express');
+const rateLimit = require('express-rate-limit');
+const { body, validationResult } = require('express-validator');
+const crypto = require('crypto');
+const models = require('./models');
+const security = require('./security');
+const config = require('./config');
+const cookies = require('./cookies');
+const mailer = require('./mailer');
+const router = express.Router();
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false });
+router.use(limiter);
+function csrf(req,res,next){ if(['GET','HEAD','OPTIONS'].includes(req.method)) return next(); const h=req.headers['x-csrf-token']; const c=req.cookies&&req.cookies.kf_csrf; if(!h||!c||h!==c)return res.status(403).json({error:'CSRF token mismatch'}); next(); }
+router.get('/csrf',(req,res)=>{const token=crypto.randomBytes(24).toString('hex');cookies.setCsrfCookie(res,token);res.json({csrfToken:token});});
+router.post('/signup',csrf,[body('email').isEmail().normalizeEmail(),body('password').isLength({min:12,max:200})],async(req,res)=>{if(!validationResult(req).isEmpty())return res.status(400).json({error:'Invalid signup details.'});const email=String(req.body.email).toLowerCase().trim();const ip=security.getClientIp(req);if(models.getUserByEmail(email)||models.ipHasSignup(ip))return res.status(409).json({error:'Signup is unavailable for these details.'});const user=models.createUser({email,passwordHash:await security.hashPassword(req.body.password),ip});models.recordIpSignup(ip,user.id);const token=security.randomToken();models.setVerifyToken(user.id,token,Date.now()+86400000);const url=`${config.appUrl}/api/auth/verify?token=${encodeURIComponent(token)}`;const sent=await mailer.sendVerificationEmail(email,url);res.status(201).json({ok:true,emailSent:sent.sent,verificationRequired:true});});
+router.post('/login',csrf,[body('email').isEmail().normalizeEmail(),body('password').isString().isLength({min:1,max:200})],async(req,res)=>{const user=models.getUserByEmail(String(req.body.email).toLowerCase().trim());if(!user||!user.password_hash||!(await security.verifyPassword(req.body.password,user.password_hash)))return res.status(401).json({error:'Invalid email or password.'});if(!user.verified&&!user.is_admin)return res.status(403).json({error:'Please verify your email first.'});cookies.setAuthCookie(res,security.signSession(user));const token=crypto.randomBytes(24).toString('hex');cookies.setCsrfCookie(res,token);res.json({ok:true,user:models.publicUser(user),csrfToken:token});});
+router.get('/verify',(req,res)=>{if(!models.verifyUserByToken(String(req.query.token||'')))return res.status(400).send('Invalid or expired verification link.');res.send('Email verified. You can now log in.');});
+router.post('/logout',csrf,(req,res)=>{cookies.clearAuthCookie(res);res.json({ok:true});});
+router.get('/me',(req,res)=>{const p=req.cookies&&req.cookies.kf_session;const payload=p&&security.verifySession(p);const user=payload&&models.getUserById(payload.uid);if(!user)return res.status(401).json({error:'Unauthorized'});res.json({user:models.publicUser(user),access:models.getAccess(user)});});
+module.exports=router;
